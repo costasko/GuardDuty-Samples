@@ -1,11 +1,9 @@
-title: (Example) Attack Tree for S3 Bucket with Video Recordings
+title: IMDS creds exfiltration paths
 
 facts:
 - ec2_creds: IMDS is accessible
   from:
   - reality:
-  - remove_boundary
-  - boundary_ip_range
 
 
 attacks:
@@ -15,7 +13,7 @@ attacks:
 - internal_actor: Internal actor with access exfiltrates creds
   from:
   - ec2_creds
-- priv_esc: Role has permissions that lead to priv esc
+- priv_esc: boundary has permissions that lead to priv esc
   from:
   - external_actor
   - internal_actor
@@ -35,33 +33,45 @@ attacks:
   - priv_esc:
 - iam_role_enumeration: Account and/or other resource enumeration
   link: https://rhinosecuritylabs.com/aws/aws-role-enumeration-iam-p2/
+  info: An error occurred (AccessDeniedException) when calling the StartSession operation User/ssm-role/i-07e4dff83760729e3 is not authorized to perform action on resource because no permissions boundary allows the action
   from:
   - sts_endpoint: 
+- replicate_ipperm_range: Create network with same range
+  from:
+  - boundary_ip_range
 
 mitigations:
-- imdvsv2: IMDSv2 prevents ssrf from exfiltrating ec2 creds
+- imdvsv2: IMDSv2 
   from:
-  - external_actor
+  - waf
 - perm_boundary: Network range boundary on compute role
   from:
   - internal_actor
-  - external_actor
-  - lambda_in_vpc
+  - waf
 - scp_permissions_boundary: SCP to lock boundary
   from:
   - remove_boundary
 - iprange: IP addresses and VPC IDs are unique to the bank
   from:
   - boundary_ip_range:
-- cloudsplain: Remove all roles with iam:* 
+- cloudsplain: Remove all roles with sts:* or iam:* 
   from:
   - assume_role:
+- waf: WAF is enabled with appropriate rules
+  from:
+  - external_actor
+- no_perm_boundary_exception: no exceptions to the boundary i.e. has to be *:*
+  from:
+  - priv_esc
 
 goals:
 - access_aws_resources: Access other AWS Resources
   from:
   - external_actor:
   - assume_role: 
+  - replicate_ipperm_range
+  - remove_boundary
 - info_exfiltration: Other info exfiltration
   from:
-  - iam_role_enumeration
+  - iam_role_enumeration:
+
