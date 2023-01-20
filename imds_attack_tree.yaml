@@ -1,0 +1,67 @@
+title: (Example) Attack Tree for S3 Bucket with Video Recordings
+
+facts:
+- ec2_creds: IMDS is accessible
+  from:
+  - reality:
+  - remove_boundary
+  - boundary_ip_range
+
+
+attacks:
+- external_actor: SSRF or other vuln exfiltrates creds
+  from:
+  - ec2_creds
+- internal_actor: Internal actor with access exfiltrates creds
+  from:
+  - ec2_creds
+- priv_esc: Role has permissions that lead to priv esc
+  from:
+  - external_actor
+  - internal_actor
+  - perm_boundary
+- sts_endpoint: Attacker exfiltrates ARN of role - getcalleridentity
+  from:
+  - external_actor
+  - perm_boundary
+- remove_boundary: Attacker can remove boundary
+  from:
+  - perm_boundary
+- boundary_ip_range: Boundary has IP range that can be replicated
+  from:
+  - perm_boundary:
+- assume_role: Assume a different role
+  from:
+  - priv_esc:
+- iam_role_enumeration: Account and/or other resource enumeration
+  link: https://rhinosecuritylabs.com/aws/aws-role-enumeration-iam-p2/
+  from:
+  - sts_endpoint: 
+
+mitigations:
+- imdvsv2: IMDSv2 prevents ssrf from exfiltrating ec2 creds
+  from:
+  - external_actor
+- perm_boundary: Network range boundary on compute role
+  from:
+  - internal_actor
+  - external_actor
+  - lambda_in_vpc
+- scp_permissions_boundary: SCP to lock boundary
+  from:
+  - remove_boundary
+- iprange: IP addresses and VPC IDs are unique to the bank
+  from:
+  - boundary_ip_range:
+- cloudsplain: Remove all roles with iam:* 
+  from:
+  - assume_role:
+
+goals:
+- access_aws_resources: Access other AWS Resources
+  from:
+  - external_actor:
+  - assume_role: 
+- info_exfiltration: Other info exfiltration
+  from:
+  - iam_role_enumeration
